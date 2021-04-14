@@ -7,42 +7,58 @@
 #include "MsgCryptography.h"
 #include "MsgDebugString.h"
 #include "MsgDispatcher.h"
-
-MsgDispatcher dispatcher;
-std::list<TcpClientPtr> Clients;
-
+#include "Log.h"
 
 bool MsgDebugStringHandler(TcpClientPtr client, MsgPtr msgPtr)
 {
     auto msg = std::dynamic_pointer_cast<MsgDebugString>(msgPtr);
     
-    std::cout << "Debug string : " << msg->GetDebugString() << "\n";
+    CLIENT_DEBUG( "Debug string : {}." , msg->GetDebugString());
     return true;
 }
 
-void OnReceive(TcpClientPtr client, MsgPtr msg)
+class CloudServer : public TcpServer
 {
-    dispatcher.Dispatch(client, msg);
-}
+public:
+    CloudServer(unsigned int port)
+        : TcpServer(port)
+    {
 
-bool OnConnect(TcpClientPtr client)
-{
-    std::cout << "A new client has connected!\n";
-    client->OnReceive = std::bind(&OnReceive, client, std::placeholders::_1);
-    client->BeginReceive();
-    Clients.push_back(client);
-    return true;
-}
+        m_Dispatcher.RegisterHandler(MsgType::MsgDebugString, MsgDebugStringHandler);
+    }
+public:
+    bool OnConnect(TcpClientPtr client) override
+    {
+        //TODO: Add firewall on connection stage!
+        return true;
+    }
+
+    void OnDisconnect(TcpClientPtr client) override
+    {
+
+    }
+
+    void OnMessage(TcpClientPtr client, MsgPtr msg) override
+    {
+        m_Dispatcher.Dispatch(client, msg);
+    }
+
+private:
+    MsgDispatcher m_Dispatcher;
+
+};
+
+
 
 int main()
 {
-    dispatcher.RegisterHandler(MsgType::MsgDebugString, MsgDebugStringHandler);
-    boost::asio::io_context ctx;
-    TcpServer server(ctx, 1101);
-    server.OnConnection = OnConnect;
-    server.Accept();
-    std::cout << "Waiting for a connection...\n";
-    ctx.run();
+    CloudServer server(1101);
+    server.Start();
+    while (true)
+    {
+        server.Update(true);
+    }
+
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

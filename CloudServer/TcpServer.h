@@ -14,7 +14,7 @@ class TcpServer
 {
 public:
 	TcpServer( unsigned int port);
-	~TcpServer();
+	virtual ~TcpServer();
 
 public:
 	bool Start();
@@ -25,12 +25,14 @@ private:
 
 
 public:
-	virtual void OnConnect(TcpClientPtr client) = 0;
+	virtual bool OnConnect(TcpClientPtr client) = 0;
 	virtual void OnDisconnect(TcpClientPtr client) = 0;
-
+	virtual void OnMessage(TcpClientPtr client, MsgPtr msg) = 0;
 public:
 	void Message(TcpClientPtr client, MsgPtr msg);
 	void MessageAll(MsgPtr msg, TcpClientPtr ignore = nullptr);
+public:
+	void Update(bool wait = false);
 private:
 	void OnAccept(TcpClientPtr client, const boost::system::error_code& err);
 private:
@@ -39,7 +41,7 @@ private:
 
 	std::thread m_ThreadCtx;
 
-	tsqueue<MsgPtr> m_MsgQueue;
+	tsqueue<std::pair<TcpClientPtr,MsgPtr>> m_MsgQueue;
 	std::deque<TcpClientPtr> m_Clients;
 
 	unsigned int m_IdCounter;

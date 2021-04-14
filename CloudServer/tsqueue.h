@@ -15,6 +15,7 @@ public:
 	// Returns and maintains item at front of Queue
 	const T& front()
 	{
+	
 		std::scoped_lock lock(muxQueue);
 		return deqQueue.front();
 	}

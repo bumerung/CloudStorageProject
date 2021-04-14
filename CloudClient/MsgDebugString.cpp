@@ -2,7 +2,7 @@
 
 MsgDebugString::MsgDebugString(const std::string& string)
 {
-	Header = { sizeof(MsgHeader) + string.length() + 1, MsgType::MsgDebugString };
+	Header = { sizeof(MsgHeader) + static_cast<int>(string.length()) + 1, MsgType::MsgDebugString };
 	memset(Body, 0, string.length() + 1);
 	memcpy(Body, string.c_str(), string.length());
 }

@@ -3,9 +3,10 @@
 #include "MsgCryptography.h"
 #include "MsgDebugString.h"
 #include "MsgBuilder.h"
+#include "Log.h"
 
-TcpClient::TcpClient(boost::asio::io_context& ctx)
-	: m_Socket(ctx)
+TcpClient::TcpClient(boost::asio::io_context& ctx, tsqueue<std::pair<TcpClientPtr, MsgPtr>>& inQ)
+	: m_Ctx(ctx), m_Socket(ctx), m_MsgsIn(inQ)
 {
 	memset(m_Body, 0, MAX_BUFFER_SIZE);
 }
@@ -16,16 +17,51 @@ TcpClient::~TcpClient()
 
 
 
+bool TcpClient::Connect(unsigned int id)
+{
+	if (m_Socket.is_open())
+	{
+		m_Id = id;
+		BeginReceive();
+		return true;
+	}
+	return false;
+}
+
 bool TcpClient::Send(MsgPtr msg)
 {
-	auto length = msg->Header.Length;
-	auto msgBuf = reinterpret_cast<char*>(msg->GetBuffer());
-	MsgCryptography::Encrypt(msgBuf, length);
-	return m_Socket.send(boost::asio::buffer(msgBuf, length)) >= length;
+
+	boost::asio::post(m_Ctx, [this, msg]() {
+
+		bool isWriting = !m_MsgsOut.empty();
+
+		m_MsgsOut.push_back(msg);
+		if (!isWriting)
+			WriteMsg();
+
+		auto length = msg->Header.Length;
+		auto msgBuf = reinterpret_cast<char*>(msg->GetBuffer());
+		MsgCryptography::Encrypt(msgBuf, length);
+		return m_Socket.send(boost::asio::buffer(msgBuf, length)) >= length;
+	});
+
+	return true;
+
+}
+
+void TcpClient::Disconnect()
+{
+	if(IsConnected())
+		boost::asio::post(m_Ctx, [this]() { m_Socket.close(); });
+}
+
+unsigned int TcpClient::GetId() const
+{
+	return m_Id;
 }
 
 
-bool TcpClient::IsConnected()
+bool TcpClient::IsConnected() const
 {
 	return m_Socket.is_open();
 }
@@ -43,6 +79,30 @@ void TcpClient::BeginReceive()
 		boost::bind(&TcpClient::OnReadHeader, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
 
+void TcpClient::WriteMsg()
+{
+	auto msg = m_MsgsOut.front();
+	auto length = msg->Header.Length;
+	auto msgBuf = msg->GetBuffer();
+	MsgCryptography::Encrypt(reinterpret_cast<char*>(msgBuf), length);
+
+	boost::asio::async_write(m_Socket, boost::asio::buffer(msgBuf, length), [this](std::error_code ec, std::size_t length){
+		if (!ec)
+		{
+			m_MsgsOut.pop_front();
+			if (!m_MsgsOut.empty())
+				WriteMsg();
+		}
+		else
+		{
+			CLIENT_ERROR("Failed to send msg to {} : {}.", m_Id, ec.message().c_str());
+			m_Socket.close();
+		}
+	
+	});
+}
+
+
 void TcpClient::OnReadHeader(const boost::system::error_code& err, unsigned int bytes_transferred)
 {
 	if (!err)
@@ -59,7 +119,7 @@ void TcpClient::OnReadHeader(const boost::system::error_code& err, unsigned int 
 	}
 	else
 	{
-		std::cerr << "Error reading msg header : " << err.message() << "\n";
+		CLIENT_ERROR("Failed to read msg header for client {}: {}.", m_Id, err.message().c_str());
 	}
 
 
@@ -83,14 +143,14 @@ void TcpClient::OnReadBody(const boost::system::error_code& err, unsigned int by
 
 			MsgPtr msg = MsgBuilder::Build(m_Header, m_Body);
 			
-			OnReceive(msg);
+			m_MsgsIn.push_back(std::make_pair(shared_from_this(), msg));
 			//continue receving messages
 			BeginReceive();
 		}
 	}
 	else
 	{
-		std::cerr << "Error reading msg body : " << err.message() << "\n";
+		CLIENT_ERROR("Failed to read msg body for client {}: {}.", m_Id, err.message().c_str());
 	}
 
 }

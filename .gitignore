@@ -32,3 +32,5 @@
 *.app
 CloudClient/Debug/
 CloudServer/Debug/
+Debug/
+.vs/

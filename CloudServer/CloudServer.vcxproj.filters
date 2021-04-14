@@ -16,6 +16,18 @@
     <Filter Include="Header Files\Containers">
       <UniqueIdentifier>{5e0cada1-5d4d-428f-b9a5-db0282a9fbf3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Utility">
+      <UniqueIdentifier>{788e0c99-46c7-4993-b69f-59d78b683a88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Utility\Logging">
+      <UniqueIdentifier>{d06d3a79-7e24-4240-9cac-923cb5a995d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Utility">
+      <UniqueIdentifier>{3b903619-6105-494b-a226-3280e4bc77c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Utility\Logging">
+      <UniqueIdentifier>{ec349603-62c6-4f26-a43a-ac079ea1736d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CloudServer.cpp">
@@ -35,6 +47,9 @@
     </ClCompile>
     <ClCompile Include="MsgBuilder.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Log.cpp">
+      <Filter>Source Files\Utility\Logging</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -61,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="tsqueue.h">
       <Filter>Header Files\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Log.h">
+      <Filter>Header Files\Utility\Logging</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
